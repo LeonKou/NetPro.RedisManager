@@ -1,0 +1,2 @@
+# NetPro.RedisManager
+NetPro.RedisManager
