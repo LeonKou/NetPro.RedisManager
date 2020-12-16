@@ -2,7 +2,8 @@
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Data;
+using System.Diagnostics.SymbolStore;
 using System.Text;
 
 namespace NetPro.RedisManager
@@ -33,26 +34,23 @@ namespace NetPro.RedisManager
         /// <returns></returns>
         public static T ConvertObj<T>(string value)
         {
-            try
+            value = value.TrimStart('\"').TrimEnd('\"');
+            if (typeof(T) == typeof(string) || typeof(T).IsValueType)
             {
-                return JsonConvert.DeserializeObject<T>(value);
+                return (T)Convert.ChangeType(value, typeof(T));
             }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Redis反序列化失败，错误：{e}");
-                return default;
-            }
+            return JsonConvert.DeserializeObject<T>(value);
         }
 
         /// <summary>
         /// 序列化为字节
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="item"></param>
         /// <returns></returns>
-        public static byte[] Serialize<T>(T item)
+        public static byte[] Serialize(object item)
         {
             var jsonString = JsonConvert.SerializeObject(item);
+            jsonString = jsonString.TrimStart('\"').TrimEnd('\"');
             return Encoding.UTF8.GetBytes(jsonString);
         }
 
@@ -64,25 +62,24 @@ namespace NetPro.RedisManager
         /// <returns></returns>
         public static string SerializeToString<T>(T item)
         {
+            if (typeof(T) == typeof(string) || typeof(T).IsValueType)
+            {
+                return Convert.ToString(item);
+            }
+
             var jsonString = JsonConvert.SerializeObject(item);
             return jsonString;
         }
 
-        public static string CheckKey(string key)
+        public static void CheckAndProcess(ref string key, ref int expiredTime)
         {
-            //TODO check
-            //key="new key";
-            //string parentKey = string.Empty;
-            //var arr = key.Split(':');
-            //if (arr.Length > 2)
-            //{
-            //	parentKey = string.Join(":", arr.Take(2));
-            //}
-            //if (string.IsNullOrWhiteSpace(parentKey))
-            //{
-            //	throw new Exception("redis key不符合规则.key值必须满足规则:模块名:类名:业务方法名:参数(可选) 如:SystemApi:ProgramService:ProgramTable");
-            //}
+            //TODO 检查key规则 
+        }
+
+        public static string CheckAndProcess(ref string key)
+        {
             return key;
+            //TODO 检查key规则 
         }
 
         /// <summary>
@@ -100,6 +97,17 @@ namespace NetPro.RedisManager
                 result.Add(model);
             }
             return result;
+        }
+
+        public static object GetDefault(this Type type)
+        {
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                var valueProperty = type.GetProperty("Value");
+                type = valueProperty.PropertyType;
+            }
+
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
     }
 }
